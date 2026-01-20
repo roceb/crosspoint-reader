@@ -92,8 +92,9 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
   for (const auto& css : metadata.cssFiles) {
     cssFilesSize += sizeof(uint32_t) + css.size();
   }
-  const uint32_t metadataSize = metadata.title.size() + metadata.author.size() + metadata.coverItemHref.size() +
-                                metadata.textReferenceHref.size() + sizeof(uint32_t) * 4 + cssFilesSize;
+  const uint32_t metadataSize = metadata.title.size() + metadata.author.size() + metadata.language.size() +
+                                metadata.coverItemHref.size() + metadata.textReferenceHref.size() +
+                                sizeof(uint32_t) * 5 + cssFilesSize;
   const uint32_t lutSize = sizeof(uint32_t) * spineCount + sizeof(uint32_t) * tocCount;
   const uint32_t lutOffset = headerASize + metadataSize;
 
@@ -105,6 +106,7 @@ bool BookMetadataCache::buildBookBin(const std::string& epubPath, const BookMeta
   // Metadata
   serialization::writeString(bookFile, metadata.title);
   serialization::writeString(bookFile, metadata.author);
+  serialization::writeString(bookFile, metadata.language);
   serialization::writeString(bookFile, metadata.coverItemHref);
   serialization::writeString(bookFile, metadata.textReferenceHref);
   // CSS files
@@ -299,6 +301,7 @@ bool BookMetadataCache::load() {
 
   serialization::readString(bookFile, coreMetadata.title);
   serialization::readString(bookFile, coreMetadata.author);
+  serialization::readString(bookFile, coreMetadata.language);
   serialization::readString(bookFile, coreMetadata.coverItemHref);
   serialization::readString(bookFile, coreMetadata.textReferenceHref);
   // CSS files

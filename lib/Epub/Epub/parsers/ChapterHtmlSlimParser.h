@@ -39,6 +39,7 @@ class ChapterHtmlSlimParser {
   uint8_t paragraphAlignment;
   uint16_t viewportWidth;
   uint16_t viewportHeight;
+  bool hyphenationEnabled;
   const CssParser* cssParser;
 
   // Style tracking (replaces depth-based approach)
@@ -67,7 +68,7 @@ class ChapterHtmlSlimParser {
   explicit ChapterHtmlSlimParser(const std::string& filepath, GfxRenderer& renderer, const int fontId,
                                  const float lineCompression, const bool extraParagraphSpacing,
                                  const uint8_t paragraphAlignment, const uint16_t viewportWidth,
-                                 const uint16_t viewportHeight,
+                                 const uint16_t viewportHeight, const bool hyphenationEnabled,
                                  const std::function<void(std::unique_ptr<Page>)>& completePageFn,
                                  const std::function<void(int)>& progressFn = nullptr,
                                  const CssParser* cssParser = nullptr)
@@ -79,6 +80,7 @@ class ChapterHtmlSlimParser {
         paragraphAlignment(paragraphAlignment),
         viewportWidth(viewportWidth),
         viewportHeight(viewportHeight),
+        hyphenationEnabled(hyphenationEnabled),
         completePageFn(completePageFn),
         progressFn(progressFn),
         cssParser(cssParser) {}
