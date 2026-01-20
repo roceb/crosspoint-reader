@@ -36,9 +36,11 @@ class ParsedText {
 
  public:
   explicit ParsedText(const TextBlock::Style style, const bool extraParagraphSpacing,
-                      const bool hyphenationEnabled = false,
-                      const BlockStyle& blockStyle = BlockStyle()))
-      : style(style), extraParagraphSpacing(extraParagraphSpacing), hyphenationEnabled(hyphenationEnabled, blockStyle(blockStyle)) {}
+                      const bool hyphenationEnabled = false, const BlockStyle& blockStyle = BlockStyle())
+      : style(style),
+        blockStyle(blockStyle),
+        extraParagraphSpacing(extraParagraphSpacing),
+        hyphenationEnabled(hyphenationEnabled) {}
   ~ParsedText() = default;
 
   void addWord(std::string word, EpdFontFamily::Style fontStyle, bool underline = false);

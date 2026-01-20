@@ -99,7 +99,8 @@ std::vector<uint16_t> ParsedText::calculateWordWidths(const GfxRenderer& rendere
     uint16_t width = measureWordWidth(renderer, fontId, *wordsIt, *wordStylesIt);
 
     // Add CSS text-indent to first word width
-    if (isFirst && blockStyle.textIndent > 0 && shouldIndent) {
+    if (isFirst && blockStyle.textIndent > 0 && (style == TextBlock::JUSTIFIED || style == TextBlock::LEFT_ALIGN) &&
+        !extraParagraphSpacing) {
       width += static_cast<uint16_t>(blockStyle.textIndent);
       isFirst = false;
     } else {
