@@ -56,8 +56,9 @@ class ChapterHtmlSlimParser {
   bool effectiveUnderline = false;
 
   void updateEffectiveInlineStyle();
-  void startNewTextBlock(TextBlock::Style style);
   void startNewTextBlock(TextBlock::Style style, const BlockStyle& blockStyle);
+  void startNewTextBlock(TextBlock::Style style);
+  void flushPartWordBuffer();
   void makePages();
   // XML callbacks
   static void XMLCALL startElement(void* userData, const XML_Char* name, const XML_Char** atts);

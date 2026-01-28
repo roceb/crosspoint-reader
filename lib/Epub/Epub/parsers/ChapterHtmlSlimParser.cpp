@@ -76,6 +76,28 @@ void ChapterHtmlSlimParser::updateEffectiveInlineStyle() {
   }
 }
 
+// flush the contents of partWordBuffer to currentTextBlock
+void ChapterHtmlSlimParser::flushPartWordBuffer() {
+  // Determine font style from depth-based tracking and CSS effective style
+  const bool isBold = boldUntilDepth < depth || effectiveBold;
+  const bool isItalic = italicUntilDepth < depth || effectiveItalic;
+  const bool isUnderline = underlineUntilDepth < depth || effectiveUnderline;
+
+  EpdFontFamily::Style fontStyle = EpdFontFamily::REGULAR;
+  if (isBold && isItalic) {
+    fontStyle = EpdFontFamily::BOLD_ITALIC;
+  } else if (isBold) {
+    fontStyle = EpdFontFamily::BOLD;
+  } else if (isItalic) {
+    fontStyle = EpdFontFamily::ITALIC;
+  }
+
+  // flush the buffer
+  partWordBuffer[partWordBufferIndex] = '\0';
+  currentTextBlock->addWord(partWordBuffer, fontStyle, isUnderline);
+  partWordBufferIndex = 0;
+}
+
 // start a new text block if needed
 void ChapterHtmlSlimParser::startNewTextBlock(const TextBlock::Style style, const BlockStyle& blockStyle) {
   if (currentTextBlock) {
@@ -119,38 +141,42 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
   if (strcmp(name, "table") == 0) {
     // Add placeholder text
     self->startNewTextBlock(TextBlock::CENTER_ALIGN);
-    if (self->currentTextBlock) {
-      self->currentTextBlock->addWord("[Table omitted]", EpdFontFamily::ITALIC);
-    }
 
-    // Skip table contents
-    self->skipUntilDepth = self->depth;
+    self->italicUntilDepth = min(self->italicUntilDepth, self->depth);
+    // Advance depth before processing character data (like you would for a element with text)
     self->depth += 1;
+    self->characterData(userData, "[Table omitted]", strlen("[Table omitted]"));
+
+    // Skip table contents (skip until parent as we pre-advanced depth above)
+    self->skipUntilDepth = self->depth - 1;
     return;
   }
 
   if (matches(name, IMAGE_TAGS, NUM_IMAGE_TAGS)) {
     // TODO: Start processing image tags
-    std::string alt;
+    std::string alt = "[Image]";
     if (atts != nullptr) {
       for (int i = 0; atts[i]; i += 2) {
         if (strcmp(atts[i], "alt") == 0) {
-          alt = "[Image: " + std::string(atts[i + 1]) + "]";
+          if (strlen(atts[i + 1]) > 0) {
+            alt = "[Image: " + std::string(atts[i + 1]) + "]";
+          }
+          break;
         }
       }
-      Serial.printf("[%lu] [EHP] Image alt: %s\n", millis(), alt.c_str());
-
-      self->startNewTextBlock(TextBlock::CENTER_ALIGN);
-      self->italicUntilDepth = min(self->italicUntilDepth, self->depth);
-      self->depth += 1;
-      self->characterData(userData, alt.c_str(), alt.length());
-
-    } else {
-      // Skip for now
-      self->skipUntilDepth = self->depth;
-      self->depth += 1;
-      return;
     }
+
+    Serial.printf("[%lu] [EHP] Image alt: %s\n", millis(), alt.c_str());
+
+    self->startNewTextBlock(TextBlock::CENTER_ALIGN);
+    self->italicUntilDepth = min(self->italicUntilDepth, self->depth);
+    // Advance depth before processing character data (like you would for a element with text)
+    self->depth += 1;
+    self->characterData(userData, alt.c_str(), alt.length());
+
+    // Skip table contents (skip until parent as we pre-advanced depth above)
+    self->skipUntilDepth = self->depth - 1;
+    return;
   }
 
   if (matches(name, SKIP_TAGS, NUM_SKIP_TAGS)) {
@@ -215,6 +241,10 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
     self->updateEffectiveInlineStyle();
   } else if (matches(name, BLOCK_TAGS, NUM_BLOCK_TAGS)) {
     if (strcmp(name, "br") == 0) {
+      if (self->partWordBufferIndex > 0) {
+        // flush word preceding <br/> to currentTextBlock before calling startNewTextBlock
+        self->flushPartWordBuffer();
+      }
       self->startNewTextBlock(self->currentTextBlock->getStyle());
     } else {
       // Determine alignment from CSS or default
@@ -319,6 +349,7 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
     }
   }
 
+  // Unprocessed tag, just increasing depth and continue forward
   self->depth += 1;
 }
 
@@ -330,27 +361,11 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
     return;
   }
 
-  // Determine font style from depth-based tracking and CSS effective style
-  const bool isBold = self->boldUntilDepth < self->depth || self->effectiveBold;
-  const bool isItalic = self->italicUntilDepth < self->depth || self->effectiveItalic;
-  const bool isUnderline = self->underlineUntilDepth < self->depth || self->effectiveUnderline;
-
-  EpdFontFamily::Style fontStyle = EpdFontFamily::REGULAR;
-  if (isBold && isItalic) {
-    fontStyle = EpdFontFamily::BOLD_ITALIC;
-  } else if (isBold) {
-    fontStyle = EpdFontFamily::BOLD;
-  } else if (isItalic) {
-    fontStyle = EpdFontFamily::ITALIC;
-  }
-
   for (int i = 0; i < len; i++) {
     if (isWhitespace(s[i])) {
       // Currently looking at whitespace, if there's anything in the partWordBuffer, flush it
       if (self->partWordBufferIndex > 0) {
-        self->partWordBuffer[self->partWordBufferIndex] = '\0';
-        self->currentTextBlock->addWord(self->partWordBuffer, fontStyle, isUnderline);
-        self->partWordBufferIndex = 0;
+        self->flushPartWordBuffer();
       }
       // Skip the whitespace char
       continue;
@@ -372,9 +387,7 @@ void XMLCALL ChapterHtmlSlimParser::characterData(void* userData, const XML_Char
 
     // If we're about to run out of space, then cut the word off and start a new one
     if (self->partWordBufferIndex >= MAX_WORD_SIZE) {
-      self->partWordBuffer[self->partWordBufferIndex] = '\0';
-      self->currentTextBlock->addWord(self->partWordBuffer, fontStyle, isUnderline);
-      self->partWordBufferIndex = 0;
+      self->flushPartWordBuffer();
     }
 
     self->partWordBuffer[self->partWordBufferIndex++] = s[i];
@@ -412,26 +425,12 @@ void XMLCALL ChapterHtmlSlimParser::endElement(void* userData, const XML_Char* n
     const bool shouldFlush = styleWillChange || matches(name, BLOCK_TAGS, NUM_BLOCK_TAGS) ||
                              matches(name, HEADER_TAGS, NUM_HEADER_TAGS) || matches(name, BOLD_TAGS, NUM_BOLD_TAGS) ||
                              matches(name, ITALIC_TAGS, NUM_ITALIC_TAGS) ||
-                             matches(name, UNDERLINE_TAGS, NUM_UNDERLINE_TAGS) || self->depth == 1;
+                             matches(name, UNDERLINE_TAGS, NUM_UNDERLINE_TAGS) ||
+                             strcmp(name, "table") == 0 || matches(name, IMAGE_TAGS, NUM_IMAGE_TAGS) ||
+                             self->depth == 1;
 
     if (shouldFlush) {
-      // Use combined depth-based and CSS-based style
-      const bool isBold = self->boldUntilDepth < self->depth || self->effectiveBold;
-      const bool isItalic = self->italicUntilDepth < self->depth || self->effectiveItalic;
-      const bool isUnderline = self->underlineUntilDepth < self->depth || self->effectiveUnderline;
-
-      EpdFontFamily::Style fontStyle = EpdFontFamily::REGULAR;
-      if (isBold && isItalic) {
-        fontStyle = EpdFontFamily::BOLD_ITALIC;
-      } else if (isBold) {
-        fontStyle = EpdFontFamily::BOLD;
-      } else if (isItalic) {
-        fontStyle = EpdFontFamily::ITALIC;
-      }
-
-      self->partWordBuffer[self->partWordBufferIndex] = '\0';
-      self->currentTextBlock->addWord(self->partWordBuffer, fontStyle, isUnderline);
-      self->partWordBufferIndex = 0;
+      self->flushPartWordBuffer();
     }
   }
 
