@@ -425,9 +425,8 @@ void XMLCALL ChapterHtmlSlimParser::endElement(void* userData, const XML_Char* n
     const bool shouldFlush = styleWillChange || matches(name, BLOCK_TAGS, NUM_BLOCK_TAGS) ||
                              matches(name, HEADER_TAGS, NUM_HEADER_TAGS) || matches(name, BOLD_TAGS, NUM_BOLD_TAGS) ||
                              matches(name, ITALIC_TAGS, NUM_ITALIC_TAGS) ||
-                             matches(name, UNDERLINE_TAGS, NUM_UNDERLINE_TAGS) ||
-                             strcmp(name, "table") == 0 || matches(name, IMAGE_TAGS, NUM_IMAGE_TAGS) ||
-                             self->depth == 1;
+                             matches(name, UNDERLINE_TAGS, NUM_UNDERLINE_TAGS) || strcmp(name, "table") == 0 ||
+                             matches(name, IMAGE_TAGS, NUM_IMAGE_TAGS) || self->depth == 1;
 
     if (shouldFlush) {
       self->flushPartWordBuffer();
