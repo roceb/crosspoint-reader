@@ -23,9 +23,13 @@ struct CssPropertyFlags {
   uint16_t indent : 1;
   uint16_t marginTop : 1;
   uint16_t marginBottom : 1;
+  uint16_t marginLeft : 1;
+  uint16_t marginRight : 1;
   uint16_t paddingTop : 1;
   uint16_t paddingBottom : 1;
-  uint16_t reserved : 7;
+  uint16_t paddingLeft : 1;
+  uint16_t paddingRight : 1;
+  uint16_t reserved : 3;
 
   CssPropertyFlags()
       : alignment(0),
@@ -35,18 +39,23 @@ struct CssPropertyFlags {
         indent(0),
         marginTop(0),
         marginBottom(0),
+        marginLeft(0),
+        marginRight(0),
         paddingTop(0),
         paddingBottom(0),
+        paddingLeft(0),
+        paddingRight(0),
         reserved(0) {}
 
   [[nodiscard]] bool anySet() const {
-    return alignment || fontStyle || fontWeight || decoration || indent || marginTop || marginBottom || paddingTop ||
-           paddingBottom;
+    return alignment || fontStyle || fontWeight || decoration || indent || marginTop || marginBottom || marginLeft ||
+           marginRight || paddingTop || paddingBottom || paddingLeft || paddingRight;
   }
 
   void clearAll() {
     alignment = fontStyle = fontWeight = decoration = indent = 0;
-    marginTop = marginBottom = paddingTop = paddingBottom = 0;
+    marginTop = marginBottom = marginLeft = marginRight = 0;
+    paddingTop = paddingBottom = paddingLeft = paddingRight = 0;
   }
 };
 
@@ -59,10 +68,14 @@ struct CssStyle {
   CssTextDecoration decoration = CssTextDecoration::None;
 
   float indentPixels = 0.0f;  // First-line indent in pixels
-  int8_t marginTop = 0;       // Vertical spacing before block (in lines, 0-2)
-  int8_t marginBottom = 0;    // Vertical spacing after block (in lines, 0-2)
-  int8_t paddingTop = 0;      // Padding before (in lines, 0-2)
-  int8_t paddingBottom = 0;   // Padding after (in lines, 0-2)
+  int16_t marginTop = 0;      // Vertical spacing before block (in pixels)
+  int16_t marginBottom = 0;   // Vertical spacing after block (in pixels)
+  int16_t marginLeft = 0;     // Horizontal spacing left of block (in pixels)
+  int16_t marginRight = 0;    // Horizontal spacing right of block (in pixels)
+  int16_t paddingTop = 0;     // Padding before (in pixels)
+  int16_t paddingBottom = 0;  // Padding after (in pixels)
+  int16_t paddingLeft = 0;    // Padding left (in pixels)
+  int16_t paddingRight = 0;   // Padding right (in pixels)
 
   CssPropertyFlags defined;  // Tracks which properties were explicitly set
 
@@ -97,6 +110,14 @@ struct CssStyle {
       marginBottom = base.marginBottom;
       defined.marginBottom = 1;
     }
+    if (base.defined.marginLeft) {
+      marginLeft = base.marginLeft;
+      defined.marginLeft = 1;
+    }
+    if (base.defined.marginRight) {
+      marginRight = base.marginRight;
+      defined.marginRight = 1;
+    }
     if (base.defined.paddingTop) {
       paddingTop = base.paddingTop;
       defined.paddingTop = 1;
@@ -104,6 +125,14 @@ struct CssStyle {
     if (base.defined.paddingBottom) {
       paddingBottom = base.paddingBottom;
       defined.paddingBottom = 1;
+    }
+    if (base.defined.paddingLeft) {
+      paddingLeft = base.paddingLeft;
+      defined.paddingLeft = 1;
+    }
+    if (base.defined.paddingRight) {
+      paddingRight = base.paddingRight;
+      defined.paddingRight = 1;
     }
   }
 
@@ -115,8 +144,12 @@ struct CssStyle {
   [[nodiscard]] bool hasTextIndent() const { return defined.indent; }
   [[nodiscard]] bool hasMarginTop() const { return defined.marginTop; }
   [[nodiscard]] bool hasMarginBottom() const { return defined.marginBottom; }
+  [[nodiscard]] bool hasMarginLeft() const { return defined.marginLeft; }
+  [[nodiscard]] bool hasMarginRight() const { return defined.marginRight; }
   [[nodiscard]] bool hasPaddingTop() const { return defined.paddingTop; }
   [[nodiscard]] bool hasPaddingBottom() const { return defined.paddingBottom; }
+  [[nodiscard]] bool hasPaddingLeft() const { return defined.paddingLeft; }
+  [[nodiscard]] bool hasPaddingRight() const { return defined.paddingRight; }
 
   // Merge another style (alias for applyOver for compatibility)
   void merge(const CssStyle& other) { applyOver(other); }
@@ -127,7 +160,8 @@ struct CssStyle {
     fontWeight = CssFontWeight::Normal;
     decoration = CssTextDecoration::None;
     indentPixels = 0.0f;
-    marginTop = marginBottom = paddingTop = paddingBottom = 0;
+    marginTop = marginBottom = marginLeft = marginRight = 0;
+    paddingTop = paddingBottom = paddingLeft = paddingRight = 0;
     defined.clearAll();
   }
 };

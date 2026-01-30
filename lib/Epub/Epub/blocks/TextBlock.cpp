@@ -89,9 +89,14 @@ bool TextBlock::serialize(FsFile& file) const {
   // Block style (margins/padding/indent)
   serialization::writePod(file, blockStyle.marginTop);
   serialization::writePod(file, blockStyle.marginBottom);
+  serialization::writePod(file, blockStyle.marginLeft);
+  serialization::writePod(file, blockStyle.marginRight);
   serialization::writePod(file, blockStyle.paddingTop);
   serialization::writePod(file, blockStyle.paddingBottom);
+  serialization::writePod(file, blockStyle.paddingLeft);
+  serialization::writePod(file, blockStyle.paddingRight);
   serialization::writePod(file, blockStyle.textIndent);
+  serialization::writePod(file, blockStyle.textIndentDefined);
 
   return true;
 }
@@ -141,9 +146,14 @@ std::unique_ptr<TextBlock> TextBlock::deserialize(FsFile& file) {
   // Block style (margins/padding/indent)
   serialization::readPod(file, blockStyle.marginTop);
   serialization::readPod(file, blockStyle.marginBottom);
+  serialization::readPod(file, blockStyle.marginLeft);
+  serialization::readPod(file, blockStyle.marginRight);
   serialization::readPod(file, blockStyle.paddingTop);
   serialization::readPod(file, blockStyle.paddingBottom);
+  serialization::readPod(file, blockStyle.paddingLeft);
+  serialization::readPod(file, blockStyle.paddingRight);
   serialization::readPod(file, blockStyle.textIndent);
+  serialization::readPod(file, blockStyle.textIndentDefined);
 
   return std::unique_ptr<TextBlock>(new TextBlock(std::move(words), std::move(wordXpos), std::move(wordStyles), style,
                                                   blockStyle, std::move(wordUnderlines)));

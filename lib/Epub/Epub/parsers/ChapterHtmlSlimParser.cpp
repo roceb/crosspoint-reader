@@ -46,11 +46,19 @@ bool matches(const char* tag_name, const char* possible_tags[], const int possib
 // Create a BlockStyle from CSS style properties
 BlockStyle createBlockStyleFromCss(const CssStyle& cssStyle) {
   BlockStyle blockStyle;
-  blockStyle.marginTop = static_cast<int8_t>(cssStyle.marginTop + cssStyle.paddingTop);
-  blockStyle.marginBottom = static_cast<int8_t>(cssStyle.marginBottom + cssStyle.paddingBottom);
+  // Vertical: combine margin and padding for top/bottom spacing
+  blockStyle.marginTop = static_cast<int16_t>(cssStyle.marginTop + cssStyle.paddingTop);
+  blockStyle.marginBottom = static_cast<int16_t>(cssStyle.marginBottom + cssStyle.paddingBottom);
   blockStyle.paddingTop = cssStyle.paddingTop;
   blockStyle.paddingBottom = cssStyle.paddingBottom;
+  // Horizontal: store margin and padding separately for layout calculations
+  blockStyle.marginLeft = cssStyle.marginLeft;
+  blockStyle.marginRight = cssStyle.marginRight;
+  blockStyle.paddingLeft = cssStyle.paddingLeft;
+  blockStyle.paddingRight = cssStyle.paddingRight;
+  // Text indent
   blockStyle.textIndent = static_cast<int16_t>(cssStyle.indentPixels);
+  blockStyle.textIndentDefined = cssStyle.defined.indent;
   return blockStyle;
 }
 
@@ -570,7 +578,9 @@ void ChapterHtmlSlimParser::addLineToPage(std::shared_ptr<TextBlock> line) {
     currentPageNextY = 0;
   }
 
-  currentPage->elements.push_back(std::make_shared<PageLine>(line, 0, currentPageNextY));
+  // Apply horizontal left inset (margin + padding) as x position offset
+  const int16_t xOffset = line->getBlockStyle().leftInset();
+  currentPage->elements.push_back(std::make_shared<PageLine>(line, xOffset, currentPageNextY));
   currentPageNextY += lineHeight;
 }
 
@@ -587,19 +597,24 @@ void ChapterHtmlSlimParser::makePages() {
 
   const int lineHeight = renderer.getLineHeight(fontId) * lineCompression;
 
-  // Apply marginTop before the paragraph
+  // Apply marginTop before the paragraph (stored in pixels)
   const BlockStyle& blockStyle = currentTextBlock->getBlockStyle();
   if (blockStyle.marginTop > 0) {
-    currentPageNextY += lineHeight * blockStyle.marginTop;
+    currentPageNextY += blockStyle.marginTop;
   }
 
+  // Calculate effective width accounting for horizontal margins/padding
+  const int horizontalInset = blockStyle.totalHorizontalInset();
+  const uint16_t effectiveWidth =
+      (horizontalInset < viewportWidth) ? static_cast<uint16_t>(viewportWidth - horizontalInset) : viewportWidth;
+
   currentTextBlock->layoutAndExtractLines(
-      renderer, fontId, viewportWidth,
+      renderer, fontId, effectiveWidth,
       [this](const std::shared_ptr<TextBlock>& textBlock) { addLineToPage(textBlock); });
 
-  // Apply marginBottom after the paragraph
+  // Apply marginBottom after the paragraph (stored in pixels)
   if (blockStyle.marginBottom > 0) {
-    currentPageNextY += lineHeight * blockStyle.marginBottom;
+    currentPageNextY += blockStyle.marginBottom;
   }
 
   // Extra paragraph spacing if enabled (default behavior)

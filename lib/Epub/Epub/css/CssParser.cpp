@@ -370,28 +370,57 @@ CssStyle CssParser::parseDeclarations(const std::string& declBlock) {
       style.indentPixels = interpretLength(propValue);
       style.defined.indent = 1;
     } else if (propName == "margin-top") {
-      const int8_t spacing = interpretSpacing(propValue);
-      if (spacing > 0) {
-        style.marginTop = spacing;
-        style.defined.marginTop = 1;
-      }
+      style.marginTop = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.marginTop = 1;
     } else if (propName == "margin-bottom") {
-      const int8_t spacing = interpretSpacing(propValue);
-      if (spacing > 0) {
-        style.marginBottom = spacing;
-        style.defined.marginBottom = 1;
+      style.marginBottom = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.marginBottom = 1;
+    } else if (propName == "margin-left") {
+      style.marginLeft = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.marginLeft = 1;
+    } else if (propName == "margin-right") {
+      style.marginRight = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.marginRight = 1;
+    } else if (propName == "margin") {
+      // Shorthand: 1-4 values for top, right, bottom, left
+      const auto values = splitWhitespace(propValue);
+      if (!values.empty()) {
+        const auto top = static_cast<int16_t>(interpretLength(values[0]));
+        const int16_t right = values.size() >= 2 ? static_cast<int16_t>(interpretLength(values[1])) : top;
+        const int16_t bottom = values.size() >= 3 ? static_cast<int16_t>(interpretLength(values[2])) : top;
+        const int16_t left = values.size() >= 4 ? static_cast<int16_t>(interpretLength(values[3])) : right;
+        style.marginTop = top;
+        style.marginRight = right;
+        style.marginBottom = bottom;
+        style.marginLeft = left;
+        style.defined.marginTop = style.defined.marginRight = style.defined.marginBottom = style.defined.marginLeft = 1;
       }
     } else if (propName == "padding-top") {
-      const int8_t spacing = interpretSpacing(propValue);
-      if (spacing > 0) {
-        style.paddingTop = spacing;
-        style.defined.paddingTop = 1;
-      }
+      style.paddingTop = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.paddingTop = 1;
     } else if (propName == "padding-bottom") {
-      const int8_t spacing = interpretSpacing(propValue);
-      if (spacing > 0) {
-        style.paddingBottom = spacing;
-        style.defined.paddingBottom = 1;
+      style.paddingBottom = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.paddingBottom = 1;
+    } else if (propName == "padding-left") {
+      style.paddingLeft = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.paddingLeft = 1;
+    } else if (propName == "padding-right") {
+      style.paddingRight = static_cast<int16_t>(interpretLength(propValue));
+      style.defined.paddingRight = 1;
+    } else if (propName == "padding") {
+      // Shorthand: 1-4 values for top, right, bottom, left
+      const auto values = splitWhitespace(propValue);
+      if (!values.empty()) {
+        const auto top = static_cast<int16_t>(interpretLength(values[0]));
+        const int16_t right = values.size() >= 2 ? static_cast<int16_t>(interpretLength(values[1])) : top;
+        const int16_t bottom = values.size() >= 3 ? static_cast<int16_t>(interpretLength(values[2])) : top;
+        const int16_t left = values.size() >= 4 ? static_cast<int16_t>(interpretLength(values[3])) : right;
+        style.paddingTop = top;
+        style.paddingRight = right;
+        style.paddingBottom = bottom;
+        style.paddingLeft = left;
+        style.defined.paddingTop = style.defined.paddingRight = style.defined.paddingBottom =
+            style.defined.paddingLeft = 1;
       }
     }
   }
