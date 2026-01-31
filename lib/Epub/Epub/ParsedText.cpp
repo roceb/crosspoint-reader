@@ -20,10 +20,11 @@ constexpr char SOFT_HYPHEN_UTF8[] = "\xC2\xAD";
 constexpr size_t SOFT_HYPHEN_BYTES = 2;
 
 // Check if a character is punctuation that should attach to the previous word
-// (no space before it). Limited to sentence-ending and clause-separating punctuation
-// to avoid false positives with decorative brackets like "[ 1 ]".
+// (no space before it). Includes sentence punctuation and closing quotes.
+// Excludes brackets/parens to avoid false positives with decorative patterns like "[ 1 ]".
 bool isAttachingPunctuation(const char c) {
-  return c == '.' || c == ',' || c == '!' || c == '?' || c == ';' || c == ':';
+  return c == '.' || c == ',' || c == '!' || c == '?' || c == ';' || c == ':' ||
+         c == '"' || c == '\'';
 }
 
 // Check if a word consists entirely of punctuation that should attach to the previous word
