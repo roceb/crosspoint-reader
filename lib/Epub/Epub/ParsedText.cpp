@@ -19,6 +19,23 @@ namespace {
 constexpr char SOFT_HYPHEN_UTF8[] = "\xC2\xAD";
 constexpr size_t SOFT_HYPHEN_BYTES = 2;
 
+// Check if a character is punctuation that should attach to the previous word
+// (no space before it). Limited to sentence-ending and clause-separating punctuation
+// to avoid false positives with decorative brackets like "[ 1 ]".
+bool isAttachingPunctuation(const char c) {
+  return c == '.' || c == ',' || c == '!' || c == '?' || c == ';' || c == ':';
+}
+
+// Check if a word consists entirely of punctuation that should attach to the previous word
+bool isAttachingPunctuationWord(const std::string& word) {
+  if (word.empty()) return false;
+  // Check if word starts with attaching punctuation and is short (to avoid false positives)
+  if (isAttachingPunctuation(word[0]) && word.size() <= 3) {
+    return true;
+  }
+  return false;
+}
+
 bool containsSoftHyphen(const std::string& word) { return word.find(SOFT_HYPHEN_UTF8) != std::string::npos; }
 
 // Removes every soft hyphen in-place so rendered glyphs match measured widths.
@@ -369,10 +386,20 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
                                   ? blockStyle.textIndent
                                   : 0;
 
-  // Calculate total word width for this line
+  // Calculate total word width for this line and count actual word gaps
+  // (punctuation that attaches to previous word doesn't count as a gap)
+  // Note: words list starts at the beginning because previous lines were spliced out
   int lineWordWidthSum = 0;
-  for (size_t i = lastBreakAt; i < lineBreak; i++) {
-    lineWordWidthSum += wordWidths[i];
+  size_t actualGapCount = 0;
+  auto countWordIt = words.begin();
+
+  for (size_t wordIdx = 0; wordIdx < lineWordCount; wordIdx++) {
+    lineWordWidthSum += wordWidths[lastBreakAt + wordIdx];
+    // Count gaps: each word after the first creates a gap, unless it's attaching punctuation
+    if (wordIdx > 0 && !isAttachingPunctuationWord(*countWordIt)) {
+      actualGapCount++;
+    }
+    ++countWordIt;
   }
 
   // Calculate spacing (account for indent reducing effective page width on first line)
@@ -382,24 +409,38 @@ void ParsedText::extractLine(const size_t breakIndex, const int pageWidth, const
   int spacing = spaceWidth;
   const bool isLastLine = breakIndex == lineBreakIndices.size() - 1;
 
-  if (style == TextBlock::JUSTIFIED && !isLastLine && lineWordCount >= 2) {
-    spacing = spareSpace / (lineWordCount - 1);
+  // For justified text, calculate spacing based on actual gap count
+  if (style == TextBlock::JUSTIFIED && !isLastLine && actualGapCount >= 1) {
+    spacing = spareSpace / static_cast<int>(actualGapCount);
   }
 
   // Calculate initial x position (first line starts at indent for left/justified text)
   auto xpos = static_cast<uint16_t>(firstLineIndent);
   if (style == TextBlock::RIGHT_ALIGN) {
-    xpos = spareSpace - (lineWordCount - 1) * spaceWidth;
+    xpos = spareSpace - static_cast<int>(actualGapCount) * spaceWidth;
   } else if (style == TextBlock::CENTER_ALIGN) {
-    xpos = (spareSpace - (lineWordCount - 1) * spaceWidth) / 2;
+    xpos = (spareSpace - static_cast<int>(actualGapCount) * spaceWidth) / 2;
   }
 
   // Pre-calculate X positions for words
+  // Punctuation that attaches to the previous word doesn't get space before it
+  // Note: words list starts at the beginning because previous lines were spliced out
   std::list<uint16_t> lineXPos;
-  for (size_t i = lastBreakAt; i < lineBreak; i++) {
-    const uint16_t currentWordWidth = wordWidths[i];
+  auto wordIt = words.begin();
+
+  for (size_t wordIdx = 0; wordIdx < lineWordCount; wordIdx++) {
+    const uint16_t currentWordWidth = wordWidths[lastBreakAt + wordIdx];
+
     lineXPos.push_back(xpos);
-    xpos += currentWordWidth + spacing;
+
+    // Add spacing after this word, unless the next word is attaching punctuation
+    auto nextWordIt = wordIt;
+    ++nextWordIt;
+    const bool nextIsAttachingPunctuation =
+        wordIdx + 1 < lineWordCount && isAttachingPunctuationWord(*nextWordIt);
+
+    xpos += currentWordWidth + (nextIsAttachingPunctuation ? 0 : spacing);
+    ++wordIt;
   }
 
   // Iterators always start at the beginning as we are moving content with splice below

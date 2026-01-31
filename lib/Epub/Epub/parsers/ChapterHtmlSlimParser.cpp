@@ -113,13 +113,44 @@ void ChapterHtmlSlimParser::flushPartWordBuffer() {
   partWordBufferIndex = 0;
 }
 
+// Merge block styles for nested block elements
+// When a child block element is inside a parent with no direct text content,
+// we accumulate their margins so nested containers properly contribute spacing
+BlockStyle mergeBlockStyles(const BlockStyle& parent, const BlockStyle& child) {
+  BlockStyle merged;
+  // Vertical margins: sum them (nested blocks create additive spacing)
+  merged.marginTop = static_cast<int16_t>(parent.marginTop + child.marginTop);
+  merged.marginBottom = static_cast<int16_t>(parent.marginBottom + child.marginBottom);
+  // Horizontal margins: sum them (nested blocks create cumulative indentation)
+  merged.marginLeft = static_cast<int16_t>(parent.marginLeft + child.marginLeft);
+  merged.marginRight = static_cast<int16_t>(parent.marginRight + child.marginRight);
+  // Padding: sum them
+  merged.paddingTop = static_cast<int16_t>(parent.paddingTop + child.paddingTop);
+  merged.paddingBottom = static_cast<int16_t>(parent.paddingBottom + child.paddingBottom);
+  merged.paddingLeft = static_cast<int16_t>(parent.paddingLeft + child.paddingLeft);
+  merged.paddingRight = static_cast<int16_t>(parent.paddingRight + child.paddingRight);
+  // Text indent: use child's if defined, otherwise inherit parent's
+  if (child.textIndentDefined) {
+    merged.textIndent = child.textIndent;
+    merged.textIndentDefined = true;
+  } else if (parent.textIndentDefined) {
+    merged.textIndent = parent.textIndent;
+    merged.textIndentDefined = true;
+  }
+  return merged;
+}
+
 // start a new text block if needed
 void ChapterHtmlSlimParser::startNewTextBlock(const TextBlock::Style style, const BlockStyle& blockStyle) {
   if (currentTextBlock) {
     // already have a text block running and it is empty - just reuse it
     if (currentTextBlock->isEmpty()) {
       currentTextBlock->setStyle(style);
-      currentTextBlock->setBlockStyle(blockStyle);
+      // Merge with existing block style to accumulate margins from parent block elements
+      // This handles cases like <div margin-bottom:2em><h1>text</h1></div> where the
+      // div's margin should be preserved even though it has no direct text content
+      const BlockStyle merged = mergeBlockStyles(currentTextBlock->getBlockStyle(), blockStyle);
+      currentTextBlock->setBlockStyle(merged);
       return;
     }
 
