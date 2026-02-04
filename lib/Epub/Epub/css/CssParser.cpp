@@ -382,14 +382,10 @@ CssStyle CssParser::parseDeclarations(const std::string& declBlock) {
       // Shorthand: 1-4 values for top, right, bottom, left
       const auto values = splitWhitespace(propValue);
       if (!values.empty()) {
-        const CssLength top = interpretLength(values[0]);
-        const CssLength right = values.size() >= 2 ? interpretLength(values[1]) : top;
-        const CssLength bottom = values.size() >= 3 ? interpretLength(values[2]) : top;
-        const CssLength left = values.size() >= 4 ? interpretLength(values[3]) : right;
-        style.marginTop = top;
-        style.marginRight = right;
-        style.marginBottom = bottom;
-        style.marginLeft = left;
+        style.marginTop = interpretLength(values[0]);
+        style.marginRight = values.size() >= 2 ? interpretLength(values[1]) : style.marginTop;
+        style.marginBottom = values.size() >= 3 ? interpretLength(values[2]) : style.marginTop;
+        style.marginLeft = values.size() >= 4 ? interpretLength(values[3]) : style.marginRight;
         style.defined.marginTop = style.defined.marginRight = style.defined.marginBottom = style.defined.marginLeft = 1;
       }
     } else if (propName == "padding-top") {
@@ -408,14 +404,10 @@ CssStyle CssParser::parseDeclarations(const std::string& declBlock) {
       // Shorthand: 1-4 values for top, right, bottom, left
       const auto values = splitWhitespace(propValue);
       if (!values.empty()) {
-        const CssLength top = interpretLength(values[0]);
-        const CssLength right = values.size() >= 2 ? interpretLength(values[1]) : top;
-        const CssLength bottom = values.size() >= 3 ? interpretLength(values[2]) : top;
-        const CssLength left = values.size() >= 4 ? interpretLength(values[3]) : right;
-        style.paddingTop = top;
-        style.paddingRight = right;
-        style.paddingBottom = bottom;
-        style.paddingLeft = left;
+        style.paddingTop = interpretLength(values[0]);
+        style.paddingRight = values.size() >= 2 ? interpretLength(values[1]) : style.paddingTop;
+        style.paddingBottom = values.size() >= 3 ? interpretLength(values[2]) : style.paddingTop;
+        style.paddingLeft = values.size() >= 4 ? interpretLength(values[3]) : style.paddingRight;
         style.defined.paddingTop = style.defined.paddingRight = style.defined.paddingBottom =
             style.defined.paddingLeft = 1;
       }
